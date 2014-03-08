@@ -1,0 +1,57 @@
+{
+	"builders": [{
+		"type": "virtualbox-iso",
+		"vm_name": "centos",
+
+		"iso_url": "http://ftp.iij.ad.jp/pub/linux/centos/6/isos/x86_64/CentOS-6.5-x86_64-bin-DVD1.iso",
+		"iso_checksum": "83221db52687c7b857e65bfe60787838",
+		"iso_checksum_type": "md5",
+
+		"guest_os_type": "RedHat_64",
+		"vboxmanage": [[ "modifyvm", "{{.Name}}", "--memory", "512", "--cpus", "2", "--vram", "2" ]],
+		"disk_size": 20480,
+		"headless": true,
+
+		"http_directory": ".",
+		"boot_command": [ "<tab> ks=http://{{.HTTPIP}}:{{.HTTPPort}}/centos.cfg<enter><wait>" ],
+
+		"ssh_username": "root",
+		"ssh_password": "vagrant",
+		"shutdown_command": "poweroff"
+	}],
+	"provisioners": [{
+		"type": "shell",
+		"inline": [
+			"curl -s http://www.opscode.com/chef/install.sh | sh",
+
+			"mount -o loop VBoxGuestAdditions.iso /mnt",
+			"/mnt/VBoxLinuxAdditions.run",
+			"umount /mnt",
+			"rm .vbox_version VBoxGuestAdditions.iso",
+
+			"useradd vagrant -p '$1$damlkd,f$UC/u5pUts5QiU3ow.CSso/'",
+			"curl -s --create-dirs -o /home/vagrant/.ssh/authorized_keys https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub",
+			"chown -R vagrant:vagrant /home/vagrant/.ssh",
+			"chmod -R u=rwX,go= /home/vagrant/.ssh",
+
+			"echo -e 'Defaults:vagrant !requiretty\\nvagrant ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/vagrant",
+			"chmod 440 /etc/sudoers.d/vagrant",
+
+			"sed -i '/^\\(HWADDR\\|UUID\\)=/d' /etc/sysconfig/network-scripts/ifcfg-eth0",
+			"rm /etc/resolv.conf /etc/udev/rules.d/70-persistent-net.rules",
+
+			"package-cleanup -d0 -e0 -y --oldkernels --count=1",
+			"rm /var/log/* /tmp/* /root/{anaconda-ks.cfg,install.log{,.syslog}} /etc/ssh/ssh_host{,_dsa,_rsa}_key{,.pub} /var/lib/random-seed /var/spool/mail/*",
+			"touch /var/log/lastlog",
+
+			"dd if=/dev/zero of=/EMPTY bs=1M 2> /dev/null",
+			"dd if=/dev/zero of=/boot/EMPTY bs=1M 2> /dev/null",
+			"rm /{,boot/}EMPTY",
+			"sync"
+		]
+	}],
+	"post-processors": [{
+		"type": "vagrant",
+		"output": "centos.box"
+	}]
+}
